@@ -9,14 +9,13 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update &&\
  yes | unminimize
 
-# copy new sources.list
-COPY --chown=root:root sources.list /etc/apt/sources.list
-
 # include multiarch support
-RUN apt-get -y install binfmt-support &&\
- dpkg --add-architecture amd64 &&\
- apt-get update &&\
- apt-get upgrade
+RUN apt-get -y install binfmt-support qemu-user-static &&\
+ dpkg --add-architecture amd64 
+
+# normally, would apt-get update and apt-get upgrade here, but
+# the build can't find sources. Conversely, it *can*
+# find all of the needed packages. So we are okay.
 
 # install GCC-related packages
 RUN apt-get -y install\
@@ -27,9 +26,6 @@ RUN apt-get -y install\
  gdb\
  gdb-doc\
  glibc-doc\
- libblas-dev\
- liblapack-dev\
- liblapack-doc\
  libstdc++-12-doc\
  make\
  make-doc
@@ -103,15 +99,11 @@ RUN apt-get -y install\
 RUN apt-get -y install\
  g++-11-x86-64-linux-gnu\
  gdb-multiarch\
- libc6:amd64\
- libstdc++6:amd64\
- libasan5:amd64\
- libtsan0:amd64\
- libubsan1:amd64\
- libreadline-dev:amd64\
- libblas-dev:amd64\
- liblapack-dev:amd64\
- qemu-user
+ libc6-amd64-cross\
+ libstdc++6-amd64-cross\
+ libasan5-amd64-cross\
+ libtsan0-amd64-cross\
+ libubsan1-amd64-cross
 
 # install fuse for lab5
 RUN apt-get -y install\
