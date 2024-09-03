@@ -114,6 +114,7 @@ ARG EMAIL=nobody@example.com
 
 # configure your environment
 USER cs202-user
+
 RUN git config --global user.name "${USER}" && \
  git config --global user.email "${EMAIL}" && \
  (echo "(custom-set-variables"; echo " '(c-basic-offset 4)"; echo " '(indent-tabs-mode nil))") > ~/.emacs && \
@@ -127,6 +128,11 @@ RUN git config --global user.name "${USER}" && \
  echo ". ~/.bashrc" >> ~/.bash_profile && \
  rm -f ~/.bash_logout && \
  echo "add-auto-load-safe-path ~" > ~/.gdbinit
+
+# This helps with WSL support, since we are going to try to use
+# a shared group so that writable files on the guest (Docker) and host
+# (WSL) work properly.
+RUN echo "umask 002" >> ~/.bashrc
 
 RUN sudo chmod -t /tmp
 
