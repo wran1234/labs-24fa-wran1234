@@ -20,7 +20,7 @@ clean:
 
 test: $(TARGET_EXEC) 
 	@if ls -al /tmp/ | grep " \.$$" | grep ".\{6\}rwt"; then \
-	    echo "Sticky bit set in /tmp. Did you rebuild your Docker image, per the lab instructions?"; \
+	    echo "Sticky bit set in /tmp but should not be. Stopping here."; \
 	else \
 	    exec ./test.bats; \
 	fi
