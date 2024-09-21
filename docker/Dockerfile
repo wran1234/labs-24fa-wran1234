@@ -4,6 +4,8 @@ FROM ubuntu:noble
 ARG TZ=America/New_York
 ENV TZ=${TZ}
 
+# 9/21/24 temporary hack since unminimize apparently no longer
+# in `ubuntu:noble` (?!). Thank you to Jocelyn Chen for the mod.
 RUN apt-get update &&\
     apt-get -y install curl
 
@@ -49,7 +51,7 @@ RUN apt-get -y install\
 # install interactive programs (emacs, vim, nano, man, sudo, etc.)
 RUN apt-get -y install\
  bc\
- curl\
+ #curl\
  dc\
  emacs-nox\
  git\
