@@ -4,6 +4,12 @@ FROM ubuntu:noble
 ARG TZ=America/New_York
 ENV TZ=${TZ}
 
+RUN apt-get update &&\
+    apt-get -y install curl
+
+RUN curl -o unminimize.deb http://launchpadlibrarian.net/740927520/unminimize_0.2.1_arm64.deb &&\
+    dpkg -i unminimize.deb
+
 # include manual pages and documentation
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update &&\
