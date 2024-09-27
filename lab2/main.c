@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <dirent.h>
 
 static int err_code;
 
@@ -112,6 +113,10 @@ static void help() {
     /* TODO: add to this */
     printf("ls: List files\n");
     printf("\t--help: Print this help\n");
+    printf("\t-a: List all files, including hidden ones\n");
+    printf("\t-l: Use long listing format\n");
+    printf("\t-R: Recursively list subdirectories\n");
+    printf("\t-n: Display the number of files instead of listing them\n");
     exit(0);
 }
 
@@ -125,7 +130,16 @@ void handle_error(char* what_happened, char* fullname) {
     PRINT_ERROR("ls", what_happened, fullname);
 
     // TODO: your code here: inspect errno and set err_code accordingly.
-    return;
+    PRINT_ERROR("ls", what_happened, fullname);
+
+    if (errno == ENOENT) {
+        err_code |= 0x08;
+    } else if (errno == EACCES) {
+        err_code |= 0x10;
+    } else {
+        err_code |= 0x20;
+    }
+    err_code |= 0x40;
 }
 
 /*
@@ -149,14 +163,24 @@ bool test_file(char* pathandname) {
  */
 bool is_dir(char* pathandname) {
     /* TODO: fillin */
-
+    struct stat sb;
+    
+    if (stat(pathandname, &sb) == 0 && S_ISDIR(sb.st_mode)) {
+        return true;
+    }
+    
     return false;
 }
 
 /* convert the mode field in a struct stat to a file type, for -l printing */
 const char* ftype_to_str(mode_t mode) {
     /* TODO: fillin */
-
+    
+    if (S_ISREG(mode))
+        return "-";
+    if (S_ISDIR(mode))
+        return "d";
+    
     return "?";
 }
 
@@ -176,6 +200,62 @@ const char* ftype_to_str(mode_t mode) {
  */
 void list_file(char* pathandname, char* name, bool list_long) {
     /* TODO: fill in*/
+    struct stat sb;
+    
+ 
+    if (stat(pathandname, &sb) == -1) {
+        handle_error("cannot stat", pathandname);
+        return;
+    }
+    
+    if(list_long){
+        printf("%s", ftype_to_str(sb.st_mode));
+        
+        PRINT_PERM_CHAR(sb.st_mode, S_IRUSR, "r");
+        PRINT_PERM_CHAR(sb.st_mode, S_IWUSR, "w");
+        PRINT_PERM_CHAR(sb.st_mode, S_IXUSR, "x");
+        PRINT_PERM_CHAR(sb.st_mode, S_IRGRP, "r");
+        PRINT_PERM_CHAR(sb.st_mode, S_IWGRP, "w");
+        PRINT_PERM_CHAR(sb.st_mode, S_IXGRP, "x");
+        PRINT_PERM_CHAR(sb.st_mode, S_IROTH, "r");
+        PRINT_PERM_CHAR(sb.st_mode, S_IWOTH, "w");
+        PRINT_PERM_CHAR(sb.st_mode, S_IXOTH, "x");
+        
+        printf(" %ld", (long)sb.st_nlink);
+        
+        char uname[256], gname[256];
+        
+        if (uname_for_uid(sb.st_uid, uname, sizeof(uname)) == 0) {
+            printf(" %s", uname);
+        } 
+        else {
+            printf(" %d", sb.st_uid);
+            err_code |= 0x20;
+        }
+        if (group_for_gid(sb.st_gid, gname, sizeof(gname)) == 0) {
+            printf(" %s", gname);
+        } 
+        else {
+            printf(" %d", sb.st_gid);
+            err_code |= 0x20;
+        }
+        
+        printf(" %ld", sb.st_size);
+
+                
+        char date[64];
+        date_string(&sb.st_mtim, date, sizeof(date));
+        printf(" %s", date);
+    }
+
+    if (S_ISDIR(sb.st_mode) && strcmp(name, ".") != 0 && strcmp(name, "..") != 0) {
+        printf(" %s/", name);
+    } 
+    else {
+        printf(" %s", name);
+    }
+    printf("\n");
+    
 }
 
 /* list_dir():
@@ -187,17 +267,41 @@ void list_file(char* pathandname, char* name, bool list_long) {
  *    - recursive: are we supposed to list sub-directories?
  */
 void list_dir(char* dirname, bool list_long, bool list_all, bool recursive) {
-    /* TODO: fill in
-     *   You'll probably want to make use of:
-     *       opendir()
-     *       readdir()
-     *       list_file()
-     *       snprintf() [to make the 'pathandname' argument to
-     *          list_file(). that requires concatenating 'dirname' and
-     *          the 'd_name' portion of the dirents]
-     *       closedir()
-     *   See the lab description for further hints
-     */
+    DIR* dir;
+    struct dirent* entry;
+
+    if ((dir = opendir(dirname)) == NULL) {
+        handle_error("cannot open directory", dirname);
+        return;
+    }
+
+    if (recursive) {
+        printf("%s:\n", dirname);
+    }
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (!list_all && entry->d_name[0] == '.') {
+            continue;
+        }
+
+        char pathandname[1024];
+        snprintf(pathandname, sizeof(pathandname), "%s/%s", dirname, entry->d_name);
+        list_file(pathandname, entry->d_name, list_long);
+    }
+
+    if (recursive) {
+        rewinddir(dir);
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_type == DT_DIR && strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+                char pathandname[1024];
+                snprintf(pathandname, sizeof(pathandname), "%s/%s", dirname, entry->d_name);
+                printf("\n");
+                list_dir(pathandname, list_long, list_all, recursive);
+            }
+        }
+    }
+
+    closedir(dir);
 }
 
 int main(int argc, char* argv[]) {
@@ -205,7 +309,7 @@ int main(int argc, char* argv[]) {
     // unsigned.
     int opt;
     err_code = 0;
-    bool list_long = false, list_all = false;
+    bool list_long = false, list_all = false, recursive = false;
     // We make use of getopt_long for argument parsing, and this
     // (single-element) array is used as input to that function. The `struct
     // option` helps us parse arguments of the form `--FOO`. Refer to `man 3
@@ -215,7 +319,7 @@ int main(int argc, char* argv[]) {
 
     // This loop is used for argument parsing. Refer to `man 3 getopt_long` to
     // better understand what is going on here.
-    while ((opt = getopt_long(argc, argv, "1a", opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "1alR", opts, NULL)) != -1) {
         switch (opt) {
             case '\a':
                 // Handle the case that the user passed in `--help`. (In the
@@ -232,6 +336,12 @@ int main(int argc, char* argv[]) {
                 break;
                 // TODO: you will need to add items here to handle the
                 // cases that the user enters "-l" or "-R"
+            case 'l':
+                list_long = true;
+                break;
+            case 'R':
+                recursive = true;
+                break;
             default:
                 printf("Unimplemented flag %d\n", opt);
                 break;
@@ -240,15 +350,21 @@ int main(int argc, char* argv[]) {
 
     // TODO: Replace this.
     if (optind < argc) {
-        printf("Optional arguments: ");
+        for (int i = optind; i < argc; i++) {
+            if (is_dir(argv[i])) {
+                if (i > optind) {
+                    printf("\n%s:\n", argv[i]);
+                }
+                list_dir(argv[i], list_long, list_all, recursive);
+            }
+            else if (test_file(argv[i])) {
+                list_file(argv[i], argv[i], list_long);
+            }
+        }
     }
-    for (int i = optind; i < argc; i++) {
-        printf("%s ", argv[i]);
-    }
-    if (optind < argc) {
-        printf("\n");
+    else {
+        list_dir(".", list_long, list_all, recursive);
     }
 
-    NOT_YET_IMPLEMENTED("Listing files");
     exit(err_code);
 }

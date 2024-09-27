@@ -1,20 +1,26 @@
-Name:    <FirstName LastName>
-net ID:       xxnnn
-NYU ID(N#):   N99999999
+Name:    <William Ran>
+net ID:       wr2176
+NYU ID(N#):   N19420796
 
 Number of late days you are taking on this lab:
 
-
+0
 
 
 Collaborators (who you talked to about the lab, what you talked about):
 
 
-
+TA during office hours. Talked about some git problems I had. 
 
 
 Source material that you consulted:
 
+
+C libraries:
+https://www.tutorialspoint.com/c_standard_library/errorno_h.htm
+
+Files and Directories:
+https://www.geeksforgeeks.org/c-program-list-files-sub-directories-directory/
 
 
 
@@ -22,11 +28,11 @@ Source material that you consulted:
 Other acknowledgments:
 
 
-
+None
 
 
 
 Anything else you'd like us to know:
 
-
+None 
 
