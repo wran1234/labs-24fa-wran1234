@@ -38,7 +38,7 @@ size()
  *      Return whether or not the queue is empty.
  *
  * Results:
- *      The true if the queue is empty and false otherwise.
+ *      true if the queue is empty and false otherwise.
  *
  * ------------------------------------------------------------------
  */
