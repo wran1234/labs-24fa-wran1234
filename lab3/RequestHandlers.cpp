@@ -1,4 +1,6 @@
-
+#include <cstdio>
+#include "Request.h"  
+#include "EStore.h"
 /*
  * ------------------------------------------------------------------
  * add_item_handler --
@@ -15,7 +17,13 @@
 void 
 add_item_handler(void *args)
 {
-    // TODO: Your code here.
+    AddItemReq *req = static_cast<AddItemReq *>(args);
+    printf("add_item_handler: item_id=%d, quantity=%d, price=%.2f, discount=%.2f\n",
+           req->item_id, req->quantity, req->price, req->discount);
+
+    req->store->addItem(req->item_id, req->quantity, req->price, req->discount);
+
+    delete req;
 }
 
 /*
@@ -34,7 +42,12 @@ add_item_handler(void *args)
 void 
 remove_item_handler(void *args)
 {
-    // TODO: Your code here.
+    RemoveItemReq *req = static_cast<RemoveItemReq *>(args);
+    printf("remove_item_handler: item_id=%d\n", req->item_id);
+
+    req->store->removeItem(req->item_id);
+
+    delete req;
 }
 
 /*
@@ -53,7 +66,12 @@ remove_item_handler(void *args)
 void 
 add_stock_handler(void *args)
 {
-    // TODO: Your code here.
+    AddStockReq *req = static_cast<AddStockReq *>(args);
+    printf("add_stock_handler: item_id=%d, additional_stock=%d\n", req->item_id, req->additional_stock);
+
+    req->store->addStock(req->item_id, req->additional_stock);
+
+    delete req;
 }
 
 /*
@@ -72,7 +90,12 @@ add_stock_handler(void *args)
 void 
 change_item_price_handler(void *args)
 {
-    // TODO: Your code here.
+    ChangeItemPriceReq *req = static_cast<ChangeItemPriceReq *>(args);
+    printf("change_item_price_handler: item_id=%d, new_price=%.2f\n", req->item_id, req->new_price);
+
+    req->store->priceItem(req->item_id, req->new_price);
+
+    delete req;
 }
 
 /*
@@ -91,7 +114,12 @@ change_item_price_handler(void *args)
 void 
 change_item_discount_handler(void *args)
 {
-    // TODO: Your code here.
+    ChangeItemDiscountReq *req = static_cast<ChangeItemDiscountReq *>(args);
+    printf("change_item_discount_handler: item_id=%d, new_discount=%.2f\n", req->item_id, req->new_discount);
+
+    req->store->discountItem(req->item_id, req->new_discount);
+
+    delete req;
 }
 
 /*
@@ -110,7 +138,12 @@ change_item_discount_handler(void *args)
 void 
 set_shipping_cost_handler(void *args)
 {
-    // TODO: Your code here.
+    SetShippingCostReq *req = static_cast<SetShippingCostReq *>(args);
+    printf("set_shipping_cost_handler: new_shipping_cost=%.2f\n", req->new_cost);
+
+    req->store->setShippingCost(req->new_cost);
+
+    delete req;
 }
 
 /*
@@ -129,7 +162,12 @@ set_shipping_cost_handler(void *args)
 void
 set_store_discount_handler(void *args)
 {
-    // TODO: Your code here.
+    SetStoreDiscountReq *req = static_cast<SetStoreDiscountReq *>(args);
+    printf("set_store_discount_handler: new_discount=%.2f\n", req->new_discount);
+
+    req->store->setStoreDiscount(req->new_discount);
+
+    delete req;
 }
 
 /*
@@ -148,7 +186,12 @@ set_store_discount_handler(void *args)
 void
 buy_item_handler(void *args)
 {
-    // TODO: Your code here.
+    BuyItemReq *req = static_cast<BuyItemReq *>(args);
+    printf("buy_item_handler: item_id=%d, budget=%.2f\n", req->item_id, req->budget);
+
+    req->store->buyItem(req->item_id, req->budget);
+
+    delete req;
 }
 
 /*
@@ -167,7 +210,12 @@ buy_item_handler(void *args)
 void
 buy_many_items_handler(void *args)
 {
-    // TODO: Your code here.
+    BuyManyItemsReq *req = static_cast<BuyManyItemsReq *>(args);
+    printf("buy_many_items_handler: budget=%.2f\n", req->budget);
+
+    req->store->buyManyItems(&req->item_ids, req->budget);
+
+    delete req;
 }
 
 /*
@@ -184,6 +232,5 @@ buy_many_items_handler(void *args)
 void 
 stop_handler(void* args)
 {
-    // TODO: Your code here.
+    printf("stop_handler: Stopping the thread\n");
 }
-

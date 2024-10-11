@@ -1,7 +1,8 @@
 #pragma once
 
+#include <map>
 #include <vector>
-
+#include "sthread.h"
 #include "Request.h"
 
 /* 
@@ -69,7 +70,15 @@ class EStore {
     Item inventory[INVENTORY_SIZE];
     const bool fineMode;
     // TODO: More needed here.
+    double shippingCost;
+    double storeDiscount;
+    std::map<int, Item> items;
 
+    smutex_t mtx;
+    scond_t cond;
+    
+    double calculateTotalCost(int item_id);
+    
     public:
 
     explicit EStore(bool enableFineMode);

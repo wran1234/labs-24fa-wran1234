@@ -1,12 +1,13 @@
-Name: 
-net ID: 
-NYU ID(N#): 
+Name: William Ran
+net ID: wr2176
+NYU ID(N#): N19420796
 
 Collaborators (who you talked to about the lab, what you talked about):
 
 
 Source material that you consulted:
-
+Vectors:
+https://www.geeksforgeeks.org/vector-in-cpp-stl/
 
 Other acknowledgments:
 
@@ -15,6 +16,15 @@ Other acknowledgments:
 
 Answers to exercises G1--G3:
 
+1. This command searches all the file with the term "void".
+./sthread.cpp:void smutex_init(smutex_t *mutex)
+./sthread.cpp:void smutex_destroy(smutex_t *mutex)
+./sthread.cpp:void smutex_lock(smutex_t *mutex)
+./sthread.cpp:void smutex_unlock(smutex_t *mutex)
+
+2. grep "Task" RequestGenerator.cpp
+
+3. The command returns any lines that contains smutex followed by a "(" or ");".
 -------------------------------------------------------------------------------
 
 Anything else you'd like us to know:

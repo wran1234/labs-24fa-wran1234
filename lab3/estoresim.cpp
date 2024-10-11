@@ -1,6 +1,6 @@
 #include <cstring>
 #include <cstdlib>
-
+#include "RequestGenerator.h"
 #include "EStore.h"
 #include "TaskQueue.h"
 
@@ -42,7 +42,17 @@ static void*
 supplierGenerator(void* arg)
 {
     // TODO: Your code here.
-    return NULL; // Keep compiler happy.
+    Simulation* sim = (Simulation*) arg;
+    SupplierRequestGenerator reqGen(&sim->supplierTasks);
+
+    //enqueue maxTasks
+    reqGen.enqueueTasks(sim->maxTasks, &sim->store);
+    
+    //enqueue stop request
+    reqGen.enqueueStops(sim->numSuppliers);
+    
+
+    return nullptr;
 }
 
 /*
@@ -73,7 +83,16 @@ static void*
 customerGenerator(void* arg)
 {
     // TODO: Your code here.
-    return NULL; // Keep compiler happy.
+    Simulation* sim = (Simulation*) arg;
+    CustomerRequestGenerator reqGen(&sim->customerTasks, sim->store.fineModeEnabled());
+
+    //enqueue maxTasks
+    reqGen.enqueueTasks(sim->maxTasks, &sim->store);
+    
+    //enqueue stop request
+    reqGen.enqueueStops(sim->numCustomers);
+
+    return nullptr;
 }
 
 /*
@@ -94,7 +113,16 @@ static void*
 supplier(void* arg)
 {
     // TODO: Your code here.
-    return NULL; // Keep compiler happy.
+    Simulation* sim = (Simulation*) arg;
+    
+    while(true){
+        Task task = sim->supplierTasks.dequeue();
+        if (task.handler == nullptr) {
+            break;
+        }
+        task.handler(task.arg);
+    }
+    return nullptr;
 }
 
 /*
@@ -115,7 +143,16 @@ static void*
 customer(void* arg)
 {
     // TODO: Your code here.
-    return NULL; // Keep compiler happy.
+    Simulation* sim = (Simulation*) arg;
+    
+    while(true){
+        Task task = sim->customerTasks.dequeue();
+        if (task.handler == nullptr) {
+            break;
+        }
+        task.handler(task.arg);
+    }
+    return nullptr;
 }
 
 /*
@@ -145,6 +182,41 @@ static void
 startSimulation(int numSuppliers, int numCustomers, int maxTasks, bool useFineMode)
 {
     // TODO: Your code here.
+    Simulation sim(useFineMode);
+    sim.maxTasks = maxTasks;
+    sim.numSuppliers = numSuppliers;
+    sim.numCustomers = numCustomers;
+    
+    sthread_t supplierGenThread, customerGenThread;
+    sthread_t supplierThreads[numSuppliers];
+    sthread_t customerThreads[numCustomers];
+    
+    //supplier generator
+    sthread_create(&supplierGenThread, supplierGenerator, &sim);
+    //customer generator
+    sthread_create(&customerGenThread, customerGenerator, &sim);
+    
+    //supplier thread
+    for (int i = 0; i < numSuppliers; i++) {
+        sthread_create(&supplierThreads[i], supplier, &sim);
+    }
+    //customer thread
+    for (int i = 0; i < numCustomers; i++) {
+        sthread_create(&customerThreads[i], customer, &sim);
+    }
+    
+    sthread_join(supplierGenThread);
+    sthread_join(customerGenThread);
+    
+    // Join all supplier threads
+    for (int i = 0; i < numSuppliers; i++) {
+        sthread_join(supplierThreads[i]);
+    }
+
+    // Join all customer threads
+    for (int i = 0; i < numCustomers; i++) {
+        sthread_join(customerThreads[i]);
+    }
 }
 
 int main(int argc, char **argv)

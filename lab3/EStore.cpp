@@ -19,12 +19,19 @@ EStore(bool enableFineMode)
     : fineMode(enableFineMode)
 {
     // TODO: Your code here.
+    shippingCost = 3.0;
+    storeDiscount =  0.0;
 }
 
 EStore::
 ~EStore()
 {
     // TODO: Your code here.
+    //Initialize mutex
+    smutex_init(&mtx);
+    
+    //Initialize condition variable
+    scond_init(&cond);
 }
 
 /*
@@ -61,8 +68,22 @@ void EStore::
 buyItem(int item_id, double budget)
 {
     assert(!fineModeEnabled());
-
-    // TODO: Your code here.
+    smutex_lock(&mtx);
+    
+    //if item not carried by the store
+    if (items.find(item_id) == items.end()) {
+        smutex_unlock(&mtx);
+        return;
+    }
+    
+    Item &item = items[item_id];
+    while (!item.valid || item.quantity == 0 || (item.price * (1 - item.discount) + shippingCost) > budget) {
+        if (!item.valid)
+            return;
+        scond_wait(&cond, &mtx);
+    }
+    
+    smutex_unlock(&mtx);
 }
 
 /*
@@ -114,8 +135,30 @@ void EStore::
 buyManyItems(vector<int>* item_ids, double budget)
 {
     assert(fineModeEnabled());
-
-    // TODO: Your code here.
+    
+    smutex_lock(&mtx);
+    double totalCost = 0.0;
+    vector<Item*> itemsToBuy;
+    
+    for (int id : *item_ids) {
+        //item is unavailable
+        if (items.find(id) == items.end() || !items[id].valid || items[id].quantity == 0) {
+            smutex_unlock(&mtx);
+            return;
+        }
+        Item &item = items[id];
+        totalCost += item.price * (1 - item.discount) + shippingCost;
+        itemsToBuy.push_back(&item);
+    }
+    //Cost exceeds budget
+    if(totalCost > budget){
+        smutex_unlock(&mtx);
+        return;
+    }
+    for (Item *item : itemsToBuy) {
+        item->quantity--;
+    }
+    smutex_unlock(&mtx);
 }
 
 /*
@@ -135,6 +178,21 @@ void EStore::
 addItem(int item_id, int quantity, double price, double discount)
 {
     // TODO: Your code here.
+    smutex_lock(&mtx);
+    
+    //item already exist
+    if (items.find(item_id) != items.end()) {
+        smutex_unlock(&mtx);
+        return;
+    }
+    Item newItem;
+    newItem.valid = true;
+    newItem.quantity = quantity;
+    newItem.price = price;
+    newItem.discount = discount;
+    items[item_id] = newItem;
+    
+    smutex_unlock(&mtx);
 }
 
 /*
@@ -156,6 +214,16 @@ void EStore::
 removeItem(int item_id)
 {
     // TODO: Your code here.
+    smutex_lock(&mtx);
+    
+    //no item found
+    if(items.find(item_id) == items.end()){
+        smutex_unlock(&mtx);
+        return;
+    }
+    
+    items[item_id].valid = false;
+    smutex_unlock(&mtx);
 }
 
 /*
@@ -174,6 +242,16 @@ void EStore::
 addStock(int item_id, int count)
 {
     // TODO: Your code here.
+    smutex_lock(&mtx);
+    //item not found or invalid
+    if (items.find(item_id) == items.end() || !items[item_id].valid) {
+        smutex_unlock(&mtx);
+        return;
+    }
+    
+    items[item_id].quantity += count;
+    scond_broadcast(&cond, &mtx);
+    smutex_unlock(&mtx);
 }
 
 /*
@@ -194,6 +272,17 @@ void EStore::
 priceItem(int item_id, double price)
 {
     // TODO: Your code here.
+    smutex_lock(&mtx);
+    //item not found or invalid
+    if (items.find(item_id) == items.end() || !items[item_id].valid) {
+        smutex_unlock(&mtx);
+        return;
+    }
+    if (price < items[item_id].price)
+        scond_broadcast(&cond, &mtx);
+    
+    items[item_id].price = price;
+    smutex_unlock(&mtx);
 }
 
 /*
@@ -214,6 +303,19 @@ void EStore::
 discountItem(int item_id, double discount)
 {
     // TODO: Your code here.
+    smutex_lock(&mtx);
+    //item not found or invalid
+    if (items.find(item_id) == items.end() || !items[item_id].valid) {
+        smutex_unlock(&mtx);
+        return;
+    }
+    
+    if (discount > items[item_id].discount){
+        scond_broadcast(&cond, &mtx);
+        storeDiscount = discount;
+    }
+    items[item_id].discount = discount;
+    smutex_unlock(&mtx);
 }
 
 /*
@@ -232,6 +334,14 @@ void EStore::
 setShippingCost(double cost)
 {
     // TODO: Your code here.
+    smutex_lock(&mtx);
+    if (cost < shippingCost) {
+        scond_broadcast(&cond, &mtx);
+        shippingCost = cost;
+    }
+
+    shippingCost = cost;
+    smutex_unlock(&mtx);
 }
 
 /*
@@ -250,6 +360,11 @@ void EStore::
 setStoreDiscount(double discount)
 {
     // TODO: Your code here.
+    smutex_lock(&mtx);
+    if (discount > storeDiscount) {
+        scond_broadcast(&cond, &mtx);
+    }
+    smutex_unlock(&mtx);
 }
 
 

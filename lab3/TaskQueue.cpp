@@ -1,16 +1,24 @@
 
 #include "TaskQueue.h"
+#include <queue>
 
 TaskQueue::
 TaskQueue()
 {
     // TODO: Your code here.
+    handler_t handler;
+    void* arg;
 }
 
 TaskQueue::
 ~TaskQueue()
 {
     // TODO: Your code here.
+    //Initialize mutex
+    smutex_init(&mtx);
+    
+    //Initialize condition variable
+    scond_init(&cond);
 }
 
 /*
@@ -28,7 +36,10 @@ int TaskQueue::
 size()
 {
     // TODO: Your code here.
-    return -999; // Keep compiler happy until routine done.
+    smutex_lock(&mtx);
+    int size = taskQueue.size();
+    smutex_unlock(&mtx);
+    return size;
 }
 
 /*
@@ -46,7 +57,10 @@ bool TaskQueue::
 empty()
 {
     // TODO: Your code here.
-    return false; // Keep compiler happy until routine done.
+    smutex_lock(&mtx);
+    bool empty = taskQueue.empty();
+    smutex_unlock(&mtx);
+    return empty;
 }
 
 /*
@@ -64,6 +78,10 @@ void TaskQueue::
 enqueue(Task task)
 {
     // TODO: Your code here.
+    smutex_lock(&mtx);
+    taskQueue.push(task);
+    scond_signal(&cond, &mtx);
+    smutex_unlock(&mtx);
 }
 
 /*
@@ -82,6 +100,14 @@ Task TaskQueue::
 dequeue()
 {
     // TODO: Your code here.
-    return Task(); // Keep compiler happy until routine done.
+    smutex_lock(&mtx);
+    //Wait until the queue is not empty
+    while(taskQueue.empty()){
+        scond_wait(&cond, &mtx);
+    }
+    Task task = taskQueue.front();
+    taskQueue.pop();
+    smutex_unlock(&mtx);
+    return task;
 }
 
