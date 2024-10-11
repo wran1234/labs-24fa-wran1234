@@ -67,7 +67,7 @@ class Item {
  */
 class EStore {
     private:
-    Item inventory[INVENTORY_SIZE];
+    Item inventory[1000];
     const bool fineMode;
     // TODO: More needed here.
     double shippingCost;

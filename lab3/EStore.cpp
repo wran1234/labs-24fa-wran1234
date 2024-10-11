@@ -14,25 +14,21 @@ Item::
 { }
 
 
-EStore::
-EStore(bool enableFineMode)
-    : fineMode(enableFineMode)
+EStore::EStore(bool enableFineMode)
+    : fineMode(enableFineMode), shippingCost(3.0), storeDiscount(0.0)
 {
-    // TODO: Your code here.
-    shippingCost = 3.0;
-    storeDiscount =  0.0;
-}
-
-EStore::
-~EStore()
-{
-    // TODO: Your code here.
-    //Initialize mutex
+    // Initialize mutex and condition variable in the constructor
     smutex_init(&mtx);
-    
-    //Initialize condition variable
     scond_init(&cond);
 }
+
+EStore::~EStore()
+{
+    // Destroy mutex and condition variable in the destructor
+    smutex_destroy(&mtx);
+    scond_destroy(&cond);
+}
+
 
 /*
  * ------------------------------------------------------------------
@@ -64,28 +60,30 @@ EStore::
  *
  * ------------------------------------------------------------------
  */
-void EStore::
-buyItem(int item_id, double budget)
+void EStore::buyItem(int item_id, double budget)
 {
     assert(!fineModeEnabled());
     smutex_lock(&mtx);
-    
-    //if item not carried by the store
+
     if (items.find(item_id) == items.end()) {
         smutex_unlock(&mtx);
-        return;
+        return;  // Item not carried by the store
     }
-    
+
     Item &item = items[item_id];
-    while (!item.valid || item.quantity == 0 || (item.price * (1 - item.discount) + shippingCost) > budget) {
-        if (!item.valid)
-            return;
-        scond_wait(&cond, &mtx);
+    while (!item.valid || item.quantity == 0 ||
+          (item.price * (1 - item.discount) + shippingCost) > budget) {
+        if (!item.valid) {
+            smutex_unlock(&mtx);
+            return;  // Item no longer valid
+        }
+        scond_wait(&cond, &mtx);  // Wait until item is available or affordable
     }
-    
+
+    // Buy item
+    item.quantity--;
     smutex_unlock(&mtx);
 }
-
 /*
  * ------------------------------------------------------------------
  * buyManyItem --
@@ -131,30 +129,30 @@ buyItem(int item_id, double budget)
  *
  * ------------------------------------------------------------------
  */
-void EStore::
-buyManyItems(vector<int>* item_ids, double budget)
+void EStore::buyManyItems(vector<int>* item_ids, double budget)
 {
     assert(fineModeEnabled());
-    
+
     smutex_lock(&mtx);
     double totalCost = 0.0;
     vector<Item*> itemsToBuy;
-    
+
     for (int id : *item_ids) {
-        //item is unavailable
         if (items.find(id) == items.end() || !items[id].valid || items[id].quantity == 0) {
-            smutex_unlock(&mtx);
+            smutex_unlock(&mtx);  // Item not available
             return;
         }
         Item &item = items[id];
         totalCost += item.price * (1 - item.discount) + shippingCost;
         itemsToBuy.push_back(&item);
     }
-    //Cost exceeds budget
-    if(totalCost > budget){
-        smutex_unlock(&mtx);
+
+    if (totalCost > budget) {
+        smutex_unlock(&mtx);  // Cost exceeds budget
         return;
     }
+
+    // Buy all items
     for (Item *item : itemsToBuy) {
         item->quantity--;
     }
@@ -174,17 +172,14 @@ buyManyItems(vector<int>* item_ids, double budget)
  *
  * ------------------------------------------------------------------
  */
-void EStore::
-addItem(int item_id, int quantity, double price, double discount)
+void EStore::addItem(int item_id, int quantity, double price, double discount)
 {
-    // TODO: Your code here.
     smutex_lock(&mtx);
-    
-    //item already exist
     if (items.find(item_id) != items.end()) {
-        smutex_unlock(&mtx);
+        smutex_unlock(&mtx);  // Item already exists
         return;
     }
+
     Item newItem;
     newItem.valid = true;
     newItem.quantity = quantity;
@@ -210,21 +205,19 @@ addItem(int item_id, int quantity, double price, double discount)
  *
  * ------------------------------------------------------------------
  */
-void EStore::
-removeItem(int item_id)
+void EStore::removeItem(int item_id)
 {
-    // TODO: Your code here.
     smutex_lock(&mtx);
-    
-    //no item found
-    if(items.find(item_id) == items.end()){
-        smutex_unlock(&mtx);
+    if (items.find(item_id) == items.end()) {
+        smutex_unlock(&mtx);  // No such item
         return;
     }
-    
-    items[item_id].valid = false;
+
+    items[item_id].valid = false;  // Mark item as invalid
+    scond_broadcast(&cond, &mtx);  // Wake up any waiters
     smutex_unlock(&mtx);
 }
+
 
 /*
  * ------------------------------------------------------------------
@@ -238,19 +231,16 @@ removeItem(int item_id)
  *
  * ------------------------------------------------------------------
  */
-void EStore::
-addStock(int item_id, int count)
+void EStore::addStock(int item_id, int count)
 {
-    // TODO: Your code here.
     smutex_lock(&mtx);
-    //item not found or invalid
     if (items.find(item_id) == items.end() || !items[item_id].valid) {
-        smutex_unlock(&mtx);
+        smutex_unlock(&mtx);  // Item not found or invalid
         return;
     }
-    
+
     items[item_id].quantity += count;
-    scond_broadcast(&cond, &mtx);
+    scond_broadcast(&cond, &mtx);  // Wake up waiters
     smutex_unlock(&mtx);
 }
 
@@ -268,22 +258,22 @@ addStock(int item_id, int count)
  *
  * ------------------------------------------------------------------
  */
-void EStore::
-priceItem(int item_id, double price)
+void EStore::priceItem(int item_id, double price)
 {
-    // TODO: Your code here.
     smutex_lock(&mtx);
-    //item not found or invalid
     if (items.find(item_id) == items.end() || !items[item_id].valid) {
-        smutex_unlock(&mtx);
+        smutex_unlock(&mtx);  // Item not found or invalid
         return;
     }
-    if (price < items[item_id].price)
-        scond_broadcast(&cond, &mtx);
-    
+
+    if (price < items[item_id].price) {
+        scond_broadcast(&cond, &mtx);  // Notify waiters if price decreased
+    }
+
     items[item_id].price = price;
     smutex_unlock(&mtx);
 }
+
 
 /*
  * ------------------------------------------------------------------
@@ -299,21 +289,18 @@ priceItem(int item_id, double price)
  *
  * ------------------------------------------------------------------
  */
-void EStore::
-discountItem(int item_id, double discount)
+void EStore::discountItem(int item_id, double discount)
 {
-    // TODO: Your code here.
     smutex_lock(&mtx);
-    //item not found or invalid
     if (items.find(item_id) == items.end() || !items[item_id].valid) {
-        smutex_unlock(&mtx);
+        smutex_unlock(&mtx);  // Item not found or invalid
         return;
     }
-    
-    if (discount > items[item_id].discount){
-        scond_broadcast(&cond, &mtx);
-        storeDiscount = discount;
+
+    if (discount > items[item_id].discount) {
+        scond_broadcast(&cond, &mtx);  // Notify waiters if discount increased
     }
+
     items[item_id].discount = discount;
     smutex_unlock(&mtx);
 }
@@ -330,14 +317,11 @@ discountItem(int item_id, double discount)
  *
  * ------------------------------------------------------------------
  */
-void EStore::
-setShippingCost(double cost)
+void EStore::setShippingCost(double cost)
 {
-    // TODO: Your code here.
     smutex_lock(&mtx);
     if (cost < shippingCost) {
-        scond_broadcast(&cond, &mtx);
-        shippingCost = cost;
+        scond_broadcast(&cond, &mtx);  // Notify waiters if shipping cost decreased
     }
 
     shippingCost = cost;
@@ -356,14 +340,14 @@ setShippingCost(double cost)
  *
  * ------------------------------------------------------------------
  */
-void EStore::
-setStoreDiscount(double discount)
+
+void EStore::setStoreDiscount(double discount)
 {
-    // TODO: Your code here.
     smutex_lock(&mtx);
     if (discount > storeDiscount) {
-        scond_broadcast(&cond, &mtx);
+        scond_broadcast(&cond, &mtx);  // Notify waiters if discount increased
     }
+    storeDiscount = discount;
     smutex_unlock(&mtx);
 }
 
