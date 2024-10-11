@@ -7,11 +7,11 @@ using namespace std;
 
 Item::
 Item() : valid(false)
-{ }
+{smutex_init(&itemMtx); }
 
 Item::
 ~Item()
-{ }
+{smutex_destroy(&itemMtx); }
 
 
 EStore::EStore(bool enableFineMode)
@@ -132,30 +132,42 @@ void EStore::buyManyItems(vector<int>* item_ids, double budget)
 {
     assert(fineModeEnabled());
 
-    smutex_lock(&mtx);
     double totalCost = 0.0;
     vector<Item*> itemsToBuy;
 
     for (int id : *item_ids) {
-        if (items.find(id) == items.end() || !items[id].valid || items[id].quantity == 0) {
-            smutex_unlock(&mtx);
+        //item not found
+        if (items.find(id) == items.end()) {
             return;
         }
         Item &item = items[id];
+            
+        //lock mutex
+        smutex_lock(&item.itemMtx);
+        
+        if (!item.valid || item.quantity == 0) {
+            for (Item* it : itemsToBuy) {
+                smutex_unlock(&it->itemMtx);
+            }
+            return;
+        }
         totalCost += item.price * (1 - item.discount) + shippingCost;
         itemsToBuy.push_back(&item);
     }
 
     if (totalCost > budget) {
-        smutex_unlock(&mtx);
+        for (Item* it : itemsToBuy) {
+            smutex_unlock(&it->itemMtx); 
+        }
         return;
     }
 
     // Buy all items
     for (Item *item : itemsToBuy) {
         item->quantity--;
+        smutex_unlock(&item->itemMtx);
     }
-    smutex_unlock(&mtx);
+
 }
 
 /*

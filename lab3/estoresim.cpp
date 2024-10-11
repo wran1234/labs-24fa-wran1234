@@ -3,6 +3,7 @@
 #include "RequestGenerator.h"
 #include "EStore.h"
 #include "TaskQueue.h"
+#include <cstdio>
 
 class Simulation {
     public:
@@ -13,8 +14,9 @@ class Simulation {
     int maxTasks;
     int numSuppliers;
     int numCustomers;
+    bool stop = false;
 
-    explicit Simulation(bool useFineMode) : store(useFineMode) { }
+    Simulation(bool useFineMode) : store(useFineMode), stop(false) { }
 };
 
 /*
@@ -42,7 +44,7 @@ static void*
 supplierGenerator(void* arg)
 {
     // TODO: Your code here.
-    Simulation* sim = (Simulation*) arg;
+    Simulation* sim = static_cast<Simulation*>(arg);
     SupplierRequestGenerator reqGen(&sim->supplierTasks);
 
     //enqueue maxTasks
@@ -83,7 +85,7 @@ static void*
 customerGenerator(void* arg)
 {
     // TODO: Your code here.
-    Simulation* sim = (Simulation*) arg;
+    Simulation* sim = static_cast<Simulation*>(arg);
     CustomerRequestGenerator reqGen(&sim->customerTasks, sim->store.fineModeEnabled());
 
     //enqueue maxTasks
@@ -113,9 +115,14 @@ static void*
 supplier(void* arg)
 {
     // TODO: Your code here.
-    Simulation* sim = (Simulation*) arg;
+    Simulation* sim = static_cast<Simulation*>(arg);
     
     while(true){
+        if (sim->stop) {
+            printf("supplier: Stopping the supplier thread\n");
+            break;
+        }
+        
         Task task = sim->supplierTasks.dequeue();
         if (task.handler == nullptr) {
             break;
@@ -143,9 +150,13 @@ static void*
 customer(void* arg)
 {
     // TODO: Your code here.
-    Simulation* sim = (Simulation*) arg;
+    Simulation* sim = static_cast<Simulation*>(arg);
     
     while(true){
+        if (sim->stop) {
+            printf("customer: Stopping the supplier thread\n");
+            break;
+        }
         Task task = sim->customerTasks.dequeue();
         if (task.handler == nullptr) {
             break;

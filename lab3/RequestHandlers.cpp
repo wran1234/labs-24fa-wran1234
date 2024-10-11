@@ -1,6 +1,7 @@
 #include <cstdio>
 #include "Request.h"  
 #include "EStore.h"
+class Simulation;
 /*
  * ------------------------------------------------------------------
  * add_item_handler --
@@ -213,8 +214,12 @@ buy_many_items_handler(void *args)
     BuyManyItemsReq *req = static_cast<BuyManyItemsReq *>(args);
     printf("buy_many_items_handler: budget=%.2f\n", req->budget);
 
-    req->store->buyManyItems(&req->item_ids, req->budget);
-
+    if (req->store != nullptr) {
+        req->store->buyManyItems(&req->item_ids, req->budget);
+    }
+    else {
+        printf("buy_many_items_handler: Error - store pointer is null.\n");
+    }
     delete req;
 }
 
@@ -232,5 +237,12 @@ buy_many_items_handler(void *args)
 void 
 stop_handler(void* args)
 {
-    printf("stop_handler: Stopping the thread\n");
+    printf("stop_handler: Stopping the threads\n");
+    bool* stop_flag = static_cast<bool*>(args);
+    
+    if (stop_flag != nullptr) {
+        *stop_flag = true;
+    } else {
+        printf("stop_handler: stop_flag is null.\n");
+    }
 }

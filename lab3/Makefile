@@ -22,7 +22,7 @@ all: $(BUILD)/estoresim
 
 $(BUILD)/%.o: %.cpp
 	@mkdir -p $(@D)
-	$(CPP) $(CFLAGS) $< -o $@ 
+	$(CPP) $(CFLAGS) $< -o $@
 
 $(BUILD)/estoresim: $(SIM_OBJS)
 	$(CPP) -o $@ $(SIM_OBJS) $(LDFLAGS)
@@ -37,7 +37,7 @@ clean:
 LAB_NUM = 3
 LAB_MAIN_NAME = lab$(LAB_NUM)
 
-always: 
+always:
 	@:
 
 realclean: clean
@@ -45,7 +45,7 @@ realclean: clean
 	$(V)rm -rf $(DISTDIR) $(DISTDIR).tgz
 
 check:
-	$(V)/bin/bash ./check-lab.sh . 
+	$(V)/bin/bash ./check-lab.sh .
 
 tidy: always
 	git clean -dff

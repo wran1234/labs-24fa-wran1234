@@ -79,6 +79,12 @@ void RequestGenerator::
 enqueueStops(int num)
 {
     // TODO: Your code here.
+    for (int i = 0; i < num; i++) {
+        Task stopTask;
+        stopTask.handler = stop_handler;
+        stopTask.arg = nullptr;
+        taskQueue->enqueue(stopTask);
+    }
 }
 
 SupplierRequestGenerator::

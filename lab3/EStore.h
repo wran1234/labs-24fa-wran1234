@@ -32,6 +32,8 @@ class Item {
     int quantity;
     double price;
     double discount;
+    
+    smutex_t itemMtx;
 
     Item();
     ~Item();

@@ -6,8 +6,11 @@ TaskQueue::
 TaskQueue()
 {
     // TODO: Your code here.
-    handler_t handler;
-    void* arg;
+    //Initialize mutex
+    smutex_init(&mtx);
+    
+    //Initialize condition variable
+    scond_init(&cond);
 }
 
 TaskQueue::
@@ -15,10 +18,10 @@ TaskQueue::
 {
     // TODO: Your code here.
     //Initialize mutex
-    smutex_init(&mtx);
+    smutex_destroy(&mtx);
     
     //Initialize condition variable
-    scond_init(&cond);
+    scond_destroy(&cond);
 }
 
 /*
